@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meal Rotation</title>
+
+    <style>
+      :root{
+        --bg:#ece0d1;
+        --card:#ffffff;
+        --primary:#967259;
+        --primary-dark:#634832;
+        --text:#222;
+        --muted:#666;
+        --border:#e5e7eb;
+        --shadow:0 12px 30px rgba(0, 0, 0,.08);
+      }
+
+      *{
+        box-sizing:border-box;
+        font-family:Inter,Segoe UI,Roboto,Arial,sans-serif;
+      }
+
+      body{
+        margin:0;
+        background:var(--bg);
+        color:var(--text);
+      }
+
+      .container{
+        max-width:900px;
+        margin:20px auto;
+        padding:20px;
+      }
+
+      h1{
+        margin-top:0;
+        font-size:2rem;
+      }
+
+      h2 {
+        margin-top: 0;
+      }
+
+      .card{
+        background:var(--card);
+        border-radius:18px;
+        padding:24px;
+        box-shadow:var(--shadow);
+        margin-bottom:24px;
+      }
+
+      .today{
+        border-left:6px solid var(--primary);
+        border-right:6px solid var(--primary);
+      }
+
+      .today h2{
+        margin:0;
+        color:var(--primary);
+      }
+
+      .meal-name{
+        font-size:1.8rem;
+        margin:14px 0 8px;
+        font-weight:700;
+      }
+
+      .description{
+        color:var(--muted);
+        line-height:1.5;
+      }
+
+      form{
+        display:grid;
+        gap:12px;
+      }
+
+      input, textarea{
+        width:100%;
+        padding:12px;
+        border-radius:10px;
+        border:1px solid var(--border);
+        font-size:18px;
+      }
+
+      textarea{
+        resize:vertical;
+        min-height:90px;
+      }
+
+      button{
+        background:var(--primary);
+        color:white;
+        border:none;
+        padding:12px 18px;
+        border-radius:10px;
+        cursor:pointer;
+        font-size:18px;
+        transition:.2s;
+      }
+
+      button:hover{
+        background:var(--primary-dark);
+      }
+
+      .meal{
+        border:1px solid var(--border);
+        border-radius:12px;
+        padding:14px;
+        margin-bottom:12px;
+      }
+
+      .meal-list-item{
+        display:flex;
+        justify-content:space-between;
+        align-items:center;
+      }
+
+      .meal-actions{
+        display:flex;
+        gap:4px;
+      }
+
+      .meal-actions button {
+        padding: 6 px 10px;
+      }
+
+      .move{
+        background:none;
+        color:#333;
+        min-width:38px;
+      }
+
+      .move:hover:not(:disabled) {
+        background:#e5e7eb;
+      }
+
+      .move:disabled{
+        opacity:.4;
+        cursor:not-allowed;
+      }
+
+      .delete{
+        color:#ef4444;
+        background:none;
+        font-size: 15px;
+      }
+
+      .delete:hover{
+        background:#ffd9d9;
+      }
+
+      .small{
+        color:var(--muted);
+        font-size:.9rem;
+      }
+
+      .upcoming-item{
+        display:flex;
+        justify-content:space-between;
+        padding:10px 0;
+        border-bottom:1px solid var(--border);
+      }
+
+      .upcoming-item:last-child{
+        border-bottom:none;
+      }
+
+      .empty{
+        text-align:center;
+        color:var(--muted);
+        padding:30px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>Meal Rotation</h1>
+      <div class="card today">
+        <h2>Today's Meal</h2>
+        <div id="todayContent"></div>
+      </div>
+
+      <div class="card">
+        <h2>Upcoming Meals</h2>
+        <div id="upcoming"></div>
+      </div>
+
+      <div class="card">
+        <h2>Add Meal</h2>
+        <form id="mealForm">
+          <input id="name-input" placeholder="Meal name" autocomplete="off" required>
+          <textarea id="description-input" placeholder="Description or recipe notes"></textarea>
+          <button>Add Meal</button>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>Meal List</h2>
+        <div id="mealList"></div>
+      </div>
+
+      <div style="display:flex; gap:10px; margin-top:12px; flex-wrap:wrap;">
+        <button type="button" id="exportBtn">Export Meals</button>
+        <button type="button" id="importBtn">Import Meals</button>
+        <input
+          type="file"
+          id="importFile"
+          accept=".json,application/json"
+          style="display:none;"
+        >
+        <button type="button" id="shareBtn">Copy Share Link</button>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+    <script>
+      let means;
+      const STORAGE_KEY = "mealRotationMeals";
+      const params = new URLSearchParams(window.location.search);
+      if (params.has("data")) {
+        try {
+          const json = LZString.decompressFromEncodedURIComponent(params.get("data"));
+          const imported = JSON.parse(json);
+          if (Array.isArray(imported)) {
+            meals = imported;
+            localStorage.setItem(
+              STORAGE_KEY,
+              JSON.stringify(meals)
+            );
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      } else {
+        meals = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+      }
+
+      function save() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(meals));
+      }
+
+      function dayOfYear(date) {
+        const start = new Date(date.getFullYear(), 0, 0);
+        const diff = date-start;
+        return Math.floor(diff/86400000);
+      }
+
+      function todaysIndex() {
+        if (meals.length === 0) return -1;
+        return (dayOfYear(new Date())-1)%meals.length;
+      }
+
+      function renderToday() {
+        const el = document.getElementById("todayContent");
+        if (meals.length === 0) {
+          el.innerHTML = '<div class="empty">Add some meals to begin your rotation.</div>';
+          return;
+        }
+        const meal = meals[todaysIndex()];
+        el.innerHTML = `
+          <div class="meal-name">${meal.name}</div>
+          <div class="description">${meal.description||"No description."}</div>
+        `;
+      }
+
+      function renderMeals() {
+        const list = document.getElementById("mealList");
+        if (meals.length === 0) {
+          list.innerHTML = '<div class="empty">No meals yet.</div>';
+          return;
+        }
+
+        list.innerHTML = `
+          <div class="small" style="margin-bottom:18px;">
+            Rotating through ${meals.length} meal${meals.length === 1 ? "" : "s"}.
+          </div>
+        `;
+
+        meals.forEach((meal,index) => {
+          const div = document.createElement("div");
+          div.className = "meal";
+          div.innerHTML = `
+            <div class="meal-list-item">
+              <div>
+                <strong>${meal.name}</strong>
+                <div class="description" style="margin-top:8px;">
+                  ${meal.description||""}
+                </div>
+              </div>
+              
+              <div class="meal-actions">
+                <button class="move" ${index === 0 ? "disabled" : ""}>▲</button>
+                <button class="move" ${index === meals.length - 1 ? "disabled" : ""}>▼</button>
+                <button class="delete">🗑️</button>
+              </div>
+            </div>
+          `;
+          const buttons = div.querySelectorAll("button");
+          buttons[0].onclick = () => moveMeal(index, index - 1);
+          buttons[1].onclick = () => moveMeal(index, index + 1);
+          buttons[2].onclick = () => {
+              meals.splice(index, 1);
+              save();
+              render();
+          };
+          list.appendChild(div);
+        });
+      }
+
+      function renderUpcomingMeals() {
+        const container = document.getElementById("upcoming");
+        if (meals.length === 0) {
+          container.innerHTML = '<div class="empty">Nothing to rotate.</div>';
+          return;
+        }
+
+        container.innerHTML = "";
+        const today = todaysIndex();
+        for(let i = 1; i < Math.min(meals.length, 7); i++) {
+          const meal = meals[(today+i) % meals.length];
+          const date = new Date();
+          date.setDate(date.getDate() + i);
+          const row = document.createElement("div");
+          row.className = "upcoming-item";
+          row.innerHTML = `
+            <div>
+              ${date.toLocaleDateString(undefined, {
+                weekday:'short',
+                month:'short',
+                day:'numeric'
+              })}
+            </div>
+            <div style="text-align:right;">
+              <strong>${meal.name}</strong>
+              <div class="description" style="font-size:14px;">
+                ${meal.description||""}
+              </div>
+            </div>
+          `;
+          container.appendChild(row);
+        }
+      }
+
+      function render() {
+        renderToday();
+        renderMeals();
+        renderUpcomingMeals();
+      }
+
+      document.getElementById("mealForm").addEventListener("submit", e => {
+        e.preventDefault();
+        meals.push({
+          name:document.getElementById("name-input").value.trim(),
+          description:document.getElementById("description-input").value.trim()
+        });
+        save();
+        e.target.reset();
+        render();
+      });
+
+      function moveMeal(from, to) {
+        if (to < 0 || to >= meals.length) {
+            return;
+        }
+        const [meal] = meals.splice(from, 1);
+        meals.splice(to, 0, meal);
+        save();
+        render();
+      }
+
+      render();
+
+      const exportBtn = document.getElementById("exportBtn");
+      const importBtn = document.getElementById("importBtn");
+      const importFile = document.getElementById("importFile");
+
+      exportBtn.addEventListener("click", () => {
+        const data = JSON.stringify(meals, null, 2);
+        const blob = new Blob([data], {
+          type: "application/json"
+        });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        const today = new Date().toISOString().split("T")[0];
+        a.download = `meal-rotation-${today}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+
+      importBtn.addEventListener("click", () => {
+        importFile.click();
+      });
+
+      importFile.addEventListener("change", (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+          try {
+            const imported = JSON.parse(reader.result);
+            if (!Array.isArray(imported)) {
+              throw new Error("Not an array");
+            }
+            if (
+              imported.some(
+                m =>
+                  typeof m.name !== "string" ||
+                  typeof m.description !== "string"
+              )
+            ) {
+              throw new Error("Invalid meal format");
+            }
+            if (!confirm(
+              `Import ${imported.length} meals?\n\nThis will replace your current meal list.`
+            )) {
+              return;
+            }
+            meals = imported;
+            save();
+            render();
+            alert("Meals imported successfully!");
+          } catch {
+            alert("That doesn't appear to be a valid meal export.");
+          }
+        };
+
+        reader.readAsText(file);
+        importFile.value = "";
+      });
+
+      document.getElementById("shareBtn").addEventListener("click", async () => {
+        const compressed = LZString.compressToEncodedURIComponent(
+          JSON.stringify(meals)
+        );
+        const url =
+          window.location.origin +
+          window.location.pathname +
+          "?data=" +
+          compressed;
+        await navigator.clipboard.writeText(url);
+        alert("Share link copied!");
+      });
+    </script>
+  </body>
+</html>
