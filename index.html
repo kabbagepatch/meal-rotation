@@ -183,6 +183,14 @@
         margin-bottom: 5px;
       }
 
+      .upcoming-item-today {
+        color: var(--primary);
+      }
+
+      .upcoming-item-past {
+        color: var(--muted)
+      }
+
       .date {
         min-width: 95px;
       }
@@ -401,9 +409,16 @@
         for(let i = 0; i < Math.min(meals.length, 7); i++) {
           const meal = meals[(mondayIndex+i) % meals.length];
           const date = getMonday();
+          const today = new Date();
           date.setDate(date.getDate() + i);
+          let classes = "upcoming-item"
+          if (date.getDate() === today.getDate()) {
+            classes += " upcoming-item-today"
+          } else if (date.getDate() < today.getDate()) {
+            classes += " upcoming-item-past"
+          }
           const row = document.createElement("div");
-          row.className = "upcoming-item";
+          row.className = classes;
           row.innerHTML = `
             <div class="upcoming-item-title">
               <div class="date">
