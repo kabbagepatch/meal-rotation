@@ -168,11 +168,7 @@
       }
 
       .upcoming-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
         padding: 10px 0;
-        gap: 15px;
         border-bottom: 1px solid var(--border);
       }
 
@@ -180,14 +176,57 @@
         border-bottom: none;
       }
 
+      .upcoming-item-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 5px;
+      }
+
       .date {
-        min-width: 75px;
+        min-width: 95px;
       }
 
       .empty {
         text-align: center;
         color: var(--muted);
         padding: 30px;
+      }
+
+      @media (max-width: 600px) {
+        h2 {
+          margin-bottom: 10px;
+        }
+
+        .container {
+          padding: 15px 10px;
+        }
+
+        .card {
+          padding: 12px;
+        }
+
+        .meal-name {
+          font-size: 1.6rem;
+          margin: 8px 0;
+        }
+
+        .move {
+          min-width: 20px;
+        }
+
+        .meal-actions button {
+          padding: 2px 6px;
+        }
+
+        .meal-list-item .description {
+          margin-top: 6px !important;
+          font-size: 14px;
+        }
+
+        .meal-list-item .cookbook {
+          display: none;
+        }
       }
     </style>
   </head>
@@ -366,15 +405,17 @@
           const row = document.createElement("div");
           row.className = "upcoming-item";
           row.innerHTML = `
-            <div class="date">
-              ${date.toLocaleDateString(undefined, {
-                weekday:'short',
-                month:'short',
-                day:'numeric'
-              })}
+            <div class="upcoming-item-title">
+              <div class="date">
+                ${date.toLocaleDateString(undefined, {
+                  weekday:'short',
+                  month:'short',
+                  day:'numeric'
+                })}
+              </div>
+              <strong>${meal.name}</strong>
             </div>
             <div style="text-align: right;">
-              <strong>${meal.name}</strong>
               <div class="description" style="font-size: 14px;">${meal.description||""}</div>
               <div class="cookbook" style="font-size: 12px;">
                 ${meal.cookbook ? `Cookbook inspo: ${meal.cookbook}` : ""}
