@@ -75,6 +75,12 @@
         line-height: 1.5;
       }
 
+      .cookbook {
+        color: var(--text);
+        line-height: 1.5;
+        font-size: 14px;
+      }
+
       form {
         display: grid;
         gap: 12px;
@@ -198,7 +204,7 @@
       </div>
 
       <div class="card">
-        <h2>Upcoming Meals</h2>
+        <h2 id="upcoming-title">Upcoming Meals</h2>
         <div id="upcoming"></div>
       </div>
 
@@ -207,6 +213,8 @@
         <form id="mealForm">
           <input id="name-input" placeholder="Meal name" autocomplete="off" required>
           <textarea id="description-input" placeholder="Description or recipe notes"></textarea>
+          <input id="cookbook-input" placeholder="Cookbook inspiration" autocomplete="off">
+          <input id="category-input" placeholder="Category" autocomplete="off">
           <button>Add Meal</button>
         </form>
       </div>
@@ -267,6 +275,22 @@
         return (dayOfYear(new Date())-1)%meals.length;
       }
 
+      function getMonday() {
+        const today = new Date();
+        const monday = new Date(today);
+        const day = today.getDay(); // Sunday = 0, Monday = 1
+        const daysSinceMonday = (day + 6) % 7;
+        monday.setDate(today.getDate() - daysSinceMonday);
+        if (today.getDay() === 0) monday.setDate(monday.getDate() + 7);
+        return monday;
+      }
+
+      function mondaysIndex() {
+        if (meals.length === 0) return -1;
+        const monday = getMonday();
+        return (dayOfYear(monday) - 1) % meals.length;
+      }
+
       function renderToday() {
         const el = document.getElementById("todayContent");
         if (meals.length === 0) {
@@ -277,6 +301,7 @@
         el.innerHTML = `
           <div class="meal-name">${meal.name}</div>
           <div class="description">${meal.description||"No description."}</div>
+          <div class="cookbook">${meal.cookbook ? `Cookbook inspo: ${meal.cookbook}` : ""}</div>
         `;
       }
 
@@ -300,8 +325,9 @@
             <div class="meal-list-item">
               <div>
                 <strong>${meal.name}</strong>
-                <div class="description" style="margin-top: 8px;">
-                  ${meal.description||""}
+                <div class="description" style="margin-top: 8px;">${meal.description||""}</div>
+                <div class="cookbook" style="margin-top: 4px; font-size: 14px">
+                  ${meal.cookbook ? `Cookbook inspo: ${meal.cookbook}` : ""}
                 </div>
               </div>
               
@@ -332,10 +358,10 @@
         }
 
         container.innerHTML = "";
-        const today = todaysIndex();
-        for(let i = 1; i < Math.min(meals.length, 7); i++) {
-          const meal = meals[(today+i) % meals.length];
-          const date = new Date();
+        const mondayIndex = mondaysIndex();
+        for(let i = 0; i < Math.min(meals.length, 7); i++) {
+          const meal = meals[(mondayIndex+i) % meals.length];
+          const date = getMonday();
           date.setDate(date.getDate() + i);
           const row = document.createElement("div");
           row.className = "upcoming-item";
@@ -349,8 +375,9 @@
             </div>
             <div style="text-align: right;">
               <strong>${meal.name}</strong>
-              <div class="description" style="font-size: 14px;">
-                ${meal.description||""}
+              <div class="description" style="font-size: 14px;">${meal.description||""}</div>
+              <div class="cookbook" style="font-size: 12px;">
+                ${meal.cookbook ? `Cookbook inspo: ${meal.cookbook}` : ""}
               </div>
             </div>
           `;
@@ -368,7 +395,9 @@
         e.preventDefault();
         meals.push({
           name: document.getElementById("name-input").value.trim(),
-          description: document.getElementById("description-input").value.trim()
+          description: document.getElementById("description-input").value.trim(),
+          cookbook: document.getElementById("cookbook-input").value.trim(),
+          category: document.getElementById("category-input").value.trim(),
         });
         save();
         e.target.reset();
@@ -423,7 +452,9 @@
               imported.some(
                 m =>
                   typeof m.name !== "string" ||
-                  typeof m.description !== "string"
+                  typeof m.description !== "string" ||
+                  typeof m.cookbook !== "string" ||
+                  typeof m.category !== "string"
               )
             ) {
               throw new Error("Invalid meal format");
